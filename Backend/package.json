@@ -14,7 +14,6 @@
   "author": "Connor Spackman",
   "license": "ISC",
   "dependencies": {
-    "@alpacahq/alpaca-trade-api": "^2.12.1",
-    "axios": "^0.26.0"
+    "@alpacahq/alpaca-trade-api": "^2.12.1"
   }
 }
