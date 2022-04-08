@@ -12,6 +12,7 @@ getNews().then((data)=>{
 });
 
 
+
 const alpaca = new Alpaca({
   keyId: process.env.ALPACA_API_KEY,
   secretKey: process.env.ALPACA_SECRET_KEY,
