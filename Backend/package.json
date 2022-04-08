@@ -2,11 +2,10 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "the backend for an automated trading algorith",
-  "main": "index.js",
+  "main": "alpaca.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  
   "repository": {
     "type": "git",
     "url": "alpaca_aglo"
