@@ -25,20 +25,23 @@ if(process.env.Development=="true"){
 }else{
   var developmentStatus = false
 }
-var GlobalBuyingPower
+
 async function BuyingPower(){
   const account = await alpaca.getAccount();
-  return account["buying_power"]-25000
+  return (account["cash"])
 }
 
 //Get Account Object
 BuyingPower().then((data)=>{
   console.log(data)
+  GlobalBuyingPower = data
+  console.log("Global Buying Power: "+GlobalBuyingPower)
 }).catch((err)=>{
   console.log("Could not print buying power: "+err)
 });
 
 async function order(symbol,amount_usd){
+    console.log("Tracked Power:"+GlobalBuyingPower)
     const order =  await alpaca.createOrder({
       symbol: symbol,
       //qty: 1,
@@ -46,34 +49,36 @@ async function order(symbol,amount_usd){
       side: 'buy',
       type: 'market',
       time_in_force: 'day',
-    }).then((error)=>{
+    }).then(()=>{
+      console.log("Order for "+symbol+" Placed")
+    }
+
+    ).catch((error)=>{
       console.log("Could not create "+symbol+ " order: "+error);
     });
-    if(developmentStatus){
-      try{
-        console.log(`\n Order for ${order.symbol}:`)
-      }catch{
-        console.log("ORDER CANCELED")
-      }
-    }
 
   
 }
 //Place Order Function
-async function placeOrder(symbol,amount_usd){
-  alpaca.getPositions().then(function(positions){
-    if(positions.length==0){
-      order(symbol,amount_usd)
-    }else{
-      for(var i=0; i<positions.length; i++){
-        if(positions[i]["symbol"]!=symbol){
-            order(symbol,amount_usd)
+async function placeOrder(symbol){
+  BuyingPower().then((data)=>{
+    console.log("Buying Power Fetched: "+data)
+    if(data>10000){
+    alpaca.getPositions().then(function(positions){
+      if(positions.length==0){
+        order(symbol,10000)
+      }else{
+        for(var i=0; i<positions.length; i++){
+          if(positions[i]["symbol"]!=symbol){
+              order(symbol,10000)
+            }
           }
-        }
-    }
-  }).catch((error)=>{
-    console.log("Could not get positions:"+error)
-  });
+      }
+    }).catch((error)=>{
+      console.log("Could not get positions:"+error)
+    });
+  }
+  })
 }
 
 
@@ -151,14 +156,7 @@ class DataStream {
 
     socket.onConnect(function () {
       console.log("Connected");
-      // getNews().then((data)=>{
-      //   for(var i =0; i<20; i++){
-      //     socket.subscribeForBars([data[i].symbol])
-      //     console.log("Connectd to: "+data[i].symbol)
-      //   }
-      // }).catch((err)=>{
-      //   console.log("Could not get news: "+err)
-      // });
+      BuyingPower().then((data)=>console.log("Buying Power",data))
       currentStocks().then((data)=>{
         for(var i=0; i<data.length; i++){
           socket.subscribeForBars([data[i]])
@@ -178,24 +176,28 @@ class DataStream {
     // socket.onStockQuote((quote) => {
     //   console.log(quote);
     // });
-
+    var currentBars = []
     socket.onStockBar((bar) => {
-       console.log(bar)
-      if(bar["ClosePrice"]>bar["OpenPrice"]){
-        BuyingPower().then((data)=>{
-          console.log("Buying Power: "+data)
-          if(data!=0){
-            placeOrder(bar["Symbol"],(data)/30)
-          }
-        }).catch(console.log("COULD NOT FETCH BUYING POWER"));
-      }
-      if(bar["ClosePrice"]<bar["OpenPrice"]){
-        console.log("short"+bar["Symbol"])
-        sellAsset(bar["Symbol"])
-      }
-      
       console.log(bar)
+      BuyingPower().then((data)=>console.log(data))
+      currentBars.push(bar)
+
+
+      if(bar["ClosePrice"]<bar["OpenPrice"]){
+          placeOrder(bar["Symbol"]).catch((err)=>{
+            console.log(err)
+          })
+        }
+      // if(bar["ClosePrice"]>bar["OpenPrice"]){
+      //   console.log("Sell: "+bar["Symbol"])
+      //   sellAsset(bar["Symbol"])
+      // }
+      
+      // console.log(bar)
     });
+    setTimeout(() => {
+      console.log("Delayed for 1 second.");
+    }, "1000") 
 
     socket.onStatuses((s) => {
       console.log(s);
@@ -225,19 +227,21 @@ let stream = new DataStream({
   feed: "iex",
   paper: true,
 });
-async function run(){
-  await alpaca.getClock().then((resp) =>{
-    closingTime = new Date(resp.next_close.substring(0, resp.next_close.length - 6));
-    currTime = new Date(resp.timestamp.substring(0, resp.timestamp.length - 6));
-  }).catch((err) => {console.log(err.error);});
-  this.timeToClose = closingTime - currTime;
+
+
+// async function run(){
+//   await alpaca.getClock().then((resp) =>{
+//     closingTime = new Date(resp.next_close.substring(0, resp.next_close.length - 6));
+//     currTime = new Date(resp.timestamp.substring(0, resp.timestamp.length - 6));
+//   }).catch((err) => {console.log(err.error);});
+//   this.timeToClose = closingTime - currTime;
   
-  if(this.timeToClose < (60000 * 15)) {
-    // Close all positions when 15 minutes til market close.
-    console.log("Market closing soon.  Closing positions.")
-  }
-}
-run()
+//   if(this.timeToClose < (60000 * 15)) {
+//     // Close all positions when 15 minutes til market close.
+//     console.log("Market closing soon.  Closing positions.")
+//   }
+// }
+// run()
   
 
 
